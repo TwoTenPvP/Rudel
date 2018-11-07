@@ -11,7 +11,7 @@ namespace Rudel
 
         internal static ulong GetULong(bool crypto)
         {
-            if (crypto) cryptoRandom.GetBytes(buffer, 0, 8);
+            if (crypto) cryptoRandom.GetBytes(buffer);
             else random.NextBytes(buffer);
 
             return buffer.ULongFromBytes(0);

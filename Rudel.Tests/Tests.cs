@@ -102,8 +102,10 @@ namespace Rudel.Tests
             IPEndPoint endpoint3 = new IPEndPoint(IPAddress.Any, 5067);
             //Assert.True(endpoint1.Equals(endpoint2));
 
-            Dictionary<ConnectKey, bool> keys = new Dictionary<ConnectKey, bool>();
-            keys.Add(new ConnectKey(endpoint1, 30), true);
+            Dictionary<ConnectKey, bool> keys = new Dictionary<ConnectKey, bool>
+            {
+                { new ConnectKey(endpoint1, 30), true }
+            };
             Assert.True(keys.ContainsKey(new ConnectKey(endpoint2, 30)));
             Assert.True(keys[new ConnectKey(endpoint3, 30)]);
         }
