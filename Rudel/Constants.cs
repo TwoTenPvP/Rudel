@@ -2,6 +2,9 @@
 {
     internal static class Constants
     {
+        internal const ushort MAX_OUTGOING_MESSAGE_DELAY = 1000;
+        internal const ushort SOCKET_BLOCK_MILISECONDS = 10;
+        internal const ushort CONNECTION_TIMEOUT_MILISECONDS = 10000;
         internal const byte CONNECTION_SEGMENT_RETRIES = 10;
         internal const int CONNECTION_SEGMENT_RETRY_TIMEOUT = 1000;
         internal const byte ACK_MASK_BITS = 64;

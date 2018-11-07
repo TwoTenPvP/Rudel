@@ -4,6 +4,7 @@
     {
         Connect,
         Disconnect,
+        Timeout,
         Data
     }
 }

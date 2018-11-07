@@ -8,10 +8,10 @@ namespace Rudel
         public byte ChannelId { get; }
         public abstract ChanneledPacket HandlePoll();
         public abstract ChanneledPacket HandleIncomingMessagePoll(byte[] buffer, int length, out bool hasMore);
-        public abstract ChanneledPacket CreateOutgoingMessage(ulong sessionId, byte[] payload, int offset, int length);
+        public abstract ChanneledPacket CreateOutgoingMessage(byte[] payload, int offset, int length);
 
         internal virtual bool SupportsAck => false;
-
+        
         internal Channel(byte channel)
         {
             ChannelId = channel;

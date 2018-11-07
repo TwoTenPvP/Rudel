@@ -45,6 +45,7 @@
     <Compile Include="Channel.cs" />
     <Compile Include="Channels\ReliableChannel.cs" />
     <Compile Include="Channels\ReliableSequencedChannel.cs" />
+    <Compile Include="ChannelType.cs" />
     <Compile Include="ConcurrentQueueImpl.cs" />
     <Compile Include="ConnectKey.cs" />
     <Compile Include="ConnectState.cs" />
@@ -56,6 +57,7 @@
     <Compile Include="NetworkEvent.cs" />
     <Compile Include="NumberUtils.cs" />
     <Compile Include="Packet.cs" />
+    <Compile Include="PacketScheduler.cs" />
     <Compile Include="Packets\AckPacket.cs" />
     <Compile Include="Packets\ChallengePacket.cs" />
     <Compile Include="Packets\ChallengeResponsePacket.cs" />
@@ -69,6 +71,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RandomUtils.cs" />
     <Compile Include="RemotePeer.cs" />
+    <Compile Include="RudelNetwork.cs" />
+    <Compile Include="ScheduledPacket.cs" />
     <Compile Include="VirtualOverflowArray.cs" />
   </ItemGroup>
   <ItemGroup />

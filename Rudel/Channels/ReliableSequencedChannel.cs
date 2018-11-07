@@ -29,9 +29,9 @@ namespace Rudel.Channels
             return mask;
         }
 
-        public override ChanneledPacket CreateOutgoingMessage(ulong sessionId, byte[] payload, int offset, int length)
+        public override ChanneledPacket CreateOutgoingMessage(byte[] payload, int offset, int length)
         {
-            ReliableSequencedPacket message = new ReliableSequencedPacket(ChannelId, sessionId, ++_lastOutboundSequenceNumber, _lastReceivedSequenceNumber, GetXAckMask(_lastReceivedSequenceNumber), payload, offset, length);
+            ReliableSequencedPacket message = new ReliableSequencedPacket(ChannelId, ++_lastOutboundSequenceNumber, _lastReceivedSequenceNumber, GetXAckMask(_lastReceivedSequenceNumber), payload, offset, length);
 
             _sendSequencer.Push(message);
 

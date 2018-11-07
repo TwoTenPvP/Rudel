@@ -23,11 +23,11 @@ namespace Rudel.Tests
             {
                 RemotePeer fakePeer = new RemotePeer();// new IPEndPoint(IPAddress.Any, 5670));
                 ulong sessionId = RandomUtils.GetULong(false);
-                fakePeer.SessionId = sessionId;
+                fakePeer.ChallengeResult = sessionId;
                 int payLength = random.Next(0, 1024);
                 byte[] payload = new byte[payLength];
                 random.NextBytes(payload);
-                ChanneledPacket sent = sender.CreateOutgoingMessage(sessionId, payload, 0, payload.Length);
+                ChanneledPacket sent = sender.CreateOutgoingMessage(payload, 0, payload.Length);
                 byte[] buffer = new byte[5000];
                 int oSize = sent.Write(buffer, fakePeer);
                 ReliableSequencedPacket incPacket = (ReliableSequencedPacket)receiver.HandleIncomingMessagePoll(buffer, oSize, out bool hasMore);
@@ -49,9 +49,9 @@ namespace Rudel.Tests
                 // Create first packet with sequence 1
                 firstPeer = new RemotePeer();// (new IPEndPoint(IPAddress.Any, 5670));
                 ulong sessionId = (ulong)0;
-                firstPeer.SessionId = sessionId;
+                firstPeer.ChallengeResult = sessionId;
                 byte[] payload = new byte[0];
-                firstPacket = sender.CreateOutgoingMessage(sessionId, payload, 0, payload.Length);
+                firstPacket = sender.CreateOutgoingMessage(payload, 0, payload.Length);
             }
             {
                 Random random = new Random(0);
@@ -59,10 +59,10 @@ namespace Rudel.Tests
                 {
                     RemotePeer fakePeer = new RemotePeer(); // (new IPEndPoint(IPAddress.Any, 5670));
                     ulong sessionId = (ulong)i;
-                    fakePeer.SessionId = sessionId;
+                    fakePeer.ChallengeResult = sessionId;
                     byte[] payload = new byte[random.Next(0, 1024)];
                     random.NextBytes(payload);
-                    ChanneledPacket sent = sender.CreateOutgoingMessage(sessionId, payload, 0, payload.Length);
+                    ChanneledPacket sent = sender.CreateOutgoingMessage(payload, 0, payload.Length);
                     byte[] buffer = new byte[5000];
                     int oSize = sent.Write(buffer, fakePeer);
                     ReliableSequencedPacket incPacket = (ReliableSequencedPacket)receiver.HandleIncomingMessagePoll(buffer, oSize, out bool hasMore);

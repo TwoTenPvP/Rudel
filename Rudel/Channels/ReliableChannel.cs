@@ -65,7 +65,7 @@ namespace Rudel.Channels
             }
         }
 
-        public override ChanneledPacket CreateOutgoingMessage(ulong sessionId, byte[] payload, int offset, int length)
+        public override ChanneledPacket CreateOutgoingMessage(byte[] payload, int offset, int length)
         {
             ReliablePacket message = new ReliablePacket(++_lastOutboundSequenceNumber, payload, offset, length);
 

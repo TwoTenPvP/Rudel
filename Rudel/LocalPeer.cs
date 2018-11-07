@@ -1,9 +1,9 @@
 ﻿using Rudel.Packets;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 
 namespace Rudel
 {
@@ -17,16 +17,49 @@ namespace Rudel
 
         public EndPoint LocalEndpoint { get; internal set; }
         private Socket socket;
+        private readonly RudelNetwork _network;
 
+        internal LocalPeer(RudelNetwork network)
+        {
+            _network = network;
+        }
+        
 
         public void StartListening(EndPoint localEndpoint)
         {
             LocalEndpoint = localEndpoint;
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             socket.Bind(LocalEndpoint);
-            ReceiveRecursive();
         }
+        
+        public RemotePeer Connect(EndPoint remoteEndpoint)
+        {
+            RemotePeer remotePeer = new RemotePeer()
+            {
+                ConnectionState = ConnectState.WaitingForChallenge,
+                ChallengeSeed = RandomUtils.GetULong(Constants.USE_CRYPTO_RANDOM),
+                RemoteEndpoint = remoteEndpoint
+            };
+            
+            PendingPeers.Add(new ConnectKey(remoteEndpoint, remotePeer.ChallengeSeed), remotePeer);
 
+            ConnectionRequestPacket packet = new ConnectionRequestPacket(remotePeer.ChallengeSeed);
+
+            SendPacket(packet, remotePeer);
+                            
+            for (int i = 0; i < Constants.CONNECTION_SEGMENT_RETRIES - 1; i++)
+            {
+                _network.PacketScheduler.Add(DateTime.Now.Add(new TimeSpan(0, 0, 0, 0, Constants.CONNECTION_SEGMENT_RETRY_TIMEOUT * i)), new ScheduledPacket()
+                {
+                    Packet = packet,
+                    LocalPeer = this,
+                    RemotePeer = remotePeer
+                });
+            }
+            
+            return remotePeer;
+        }
+        
         public NetworkEvent Poll()
         {
             if (incomingEvents.TryDequeue(out NetworkEvent @event))
@@ -39,9 +72,14 @@ namespace Rudel
             }
         }
 
+        public void Disconnect(EndPoint endpoint)
+        {
+            // TODO: Implement
+        }
+
         public void Send(RemotePeer peer, byte channel, byte[] payload, int offset, int length)
         {
-            ChanneledPacket packet = peer.Channels[channel].CreateOutgoingMessage(peer.SessionId, payload, offset, length);
+            ChanneledPacket packet = peer.Channels[channel].CreateOutgoingMessage(payload, offset, length);
 
             if (peer.ConnectionState != ConnectState.Connected)
             {
@@ -56,28 +94,22 @@ namespace Rudel
             byte[] payload = new byte[4096];
             int size = packet.Write(payload, peer);
 
-            socket.BeginSendTo(payload, 0, size, SocketFlags.None, peer.RemoteEndpoint, (result) =>
-            {
-                int sentSize = socket.EndSendTo(result);
-                peer.LastOutgoingMessageDate = DateTime.Now;
-            }, socket);
+            int sentSize = socket.SendTo(payload, 0, size, SocketFlags.None, peer.RemoteEndpoint);
+            peer.LastOutgoingMessageDate = DateTime.Now;
         }
 
-        internal void ReceiveRecursive()
+        internal void PollSocket()
         {
-            byte[] payload = new byte[4096];
-
-            IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
-            EndPoint fromEndpoint = (EndPoint)sender;
-
-            socket.BeginReceiveFrom(payload, 0, payload.Length, SocketFlags.None, ref fromEndpoint, (result) =>
+            if (socket.Poll(Constants.SOCKET_BLOCK_MILISECONDS * 1000, SelectMode.SelectError))
             {
-                int receivedSize = socket.EndReceiveFrom(result, ref fromEndpoint);
-                HandlePacket(payload, receivedSize, fromEndpoint);
+                byte[] payload = new byte[4096];
 
-                ReceiveRecursive();
+                IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
+                EndPoint fromEndpoint = (EndPoint)sender;
 
-            }, socket);
+                int size = socket.ReceiveFrom(payload, 0, payload.Length, SocketFlags.None, ref fromEndpoint);
+                HandlePacket(payload, size, fromEndpoint);
+            }
         }
 
         private void HandlePacket(byte[] data, int length, EndPoint fromEndpoint)
@@ -93,29 +125,34 @@ namespace Rudel
                 case PacketType.ConnectionRequest:
                     {
                         ConnectionRequestPacket connectionRequest = new ConnectionRequestPacket();
-                        if (connectionRequest.Read(data, length) && PendingPeers.ContainsKey(new ConnectKey(fromEndpoint, connectionRequest.ClientRandom)))
+                        if (connectionRequest.Read(data, length) && !PendingPeers.ContainsKey(new ConnectKey(fromEndpoint, connectionRequest.ClientRandom)))
                         {
                             ulong localSessionPart = RandomUtils.GetULong(Constants.USE_CRYPTO_RANDOM);
 
                             RemotePeer peer = new RemotePeer()
                             {
-                                RemoteSessionPart = connectionRequest.ClientRandom,
+                                ChallengeData = connectionRequest.ClientRandom,
                                 RemoteEndpoint = fromEndpoint,
                                 ConnectionState = ConnectState.WaitingForChallengeResponse,
-                                LocalSessionPart = localSessionPart,
-                                SessionId = localSessionPart ^ connectionRequest.ClientRandom,
+                                ChallengeSeed = localSessionPart,
+                                ChallengeResult = localSessionPart ^ connectionRequest.ClientRandom,
                                 LastIncomingMessageDate = DateTime.Now
                             };
 
                             PendingPeers.Add(new ConnectKey(fromEndpoint, connectionRequest.ClientRandom), peer);
 
-                            ChallengePacket packet = new ChallengePacket(peer.RemoteSessionPart, peer.LocalSessionPart);
+                            ChallengePacket packet = new ChallengePacket(peer.ChallengeData, peer.ChallengeSeed);
 
-                            for (int i = 0; i < Constants.CONNECTION_SEGMENT_RETRIES && peer.ConnectionState == ConnectState.WaitingForChallengeResponse; i++)
+                            SendPacket(packet, peer);
+                            
+                            for (int i = 0; i < Constants.CONNECTION_SEGMENT_RETRIES - 1; i++)
                             {
-                                SendPacket(packet, peer);
-
-                                Thread.Sleep(Constants.CONNECTION_SEGMENT_RETRY_TIMEOUT);
+                                _network.PacketScheduler.Add(DateTime.Now.Add(new TimeSpan(0, 0, 0, 0, Constants.CONNECTION_SEGMENT_RETRY_TIMEOUT * i)), new ScheduledPacket()
+                                {
+                                    Packet = packet,
+                                    LocalPeer = this,
+                                    RemotePeer = peer
+                                });
                             }
                         }
                     }
@@ -128,21 +165,27 @@ namespace Rudel
                             RemotePeer peer = PendingPeers[new ConnectKey(fromEndpoint, challenge.ClientRandom)];
                             if (peer.ConnectionState == ConnectState.WaitingForChallenge)
                             {
+                                peer.CreateChannels(_network.ChannelTypes);
                                 peer.LastIncomingMessageDate = DateTime.Now;
-                                peer.RemoteSessionPart = challenge.ServerRandom;
-                                peer.SessionId = peer.RemoteSessionPart ^ peer.LocalSessionPart;
+                                peer.ChallengeData = challenge.ServerRandom;
+                                peer.ChallengeResult = peer.ChallengeData ^ peer.ChallengeSeed;
                                 peer.ConnectionState = ConnectState.Connected;
 
                                 PendingPeers.Remove(new ConnectKey(fromEndpoint, challenge.ClientRandom));
                                 Connected.Add(fromEndpoint, peer);
 
-                                ChallengeResponsePacket packet = new ChallengeResponsePacket(peer.LocalSessionPart, peer.RemoteSessionPart, peer.SessionId);
+                                ChallengeResponsePacket packet = new ChallengeResponsePacket(peer.ChallengeSeed, peer.ChallengeData, peer.ChallengeResult);
 
-                                for (int i = 0; i < Constants.CONNECTION_SEGMENT_RETRIES; i++)
+                                SendPacket(packet, peer);
+                            
+                                for (int i = 0; i < Constants.CONNECTION_SEGMENT_RETRIES - 1; i++)
                                 {
-                                    SendPacket(packet, peer);
-
-                                    Thread.Sleep(Constants.CONNECTION_SEGMENT_RETRY_TIMEOUT);
+                                    _network.PacketScheduler.Add(DateTime.Now.Add(new TimeSpan(0, 0, 0, 0, Constants.CONNECTION_SEGMENT_RETRY_TIMEOUT * i)), new ScheduledPacket()
+                                    {
+                                        Packet = packet,
+                                        LocalPeer = this,
+                                        RemotePeer = peer
+                                    });
                                 }
                             }
                         }
@@ -154,8 +197,9 @@ namespace Rudel
                         if (challengeResponse.Read(data, length) && PendingPeers.ContainsKey(new ConnectKey(fromEndpoint, challengeResponse.ClientRandom)))
                         {
                             RemotePeer peer = PendingPeers[new ConnectKey(fromEndpoint, challengeResponse.ClientRandom)];
-                            if (peer.ConnectionState == ConnectState.WaitingForChallengeResponse && peer.SessionId == challengeResponse.ChallengeResponse)
+                            if (peer.ConnectionState == ConnectState.WaitingForChallengeResponse && peer.ChallengeResult == challengeResponse.ChallengeResponse)
                             {
+                                peer.CreateChannels(_network.ChannelTypes);
                                 peer.LastIncomingMessageDate = DateTime.Now;
                                 peer.ConnectionState = ConnectState.Connected;
                                 PendingPeers.Remove(new ConnectKey(fromEndpoint, challengeResponse.ClientRandom));

@@ -20,7 +20,7 @@ namespace Rudel.Packets
         private int offset;
         private int length;
 
-        internal ReliableSequencedPacket(byte channel, ulong sessionId, ushort sequence, ushort ackSequence, ulong xackMask, byte[] payload, int offset, int length) : base(channel, PacketType.Data)
+        internal ReliableSequencedPacket(byte channel, ushort sequence, ushort ackSequence, ulong xackMask, byte[] payload, int offset, int length) : base(channel, PacketType.Data)
         {
             this.ExplicitResponse = ExplicitResponseState.None;
             this.Sequence = sequence;
