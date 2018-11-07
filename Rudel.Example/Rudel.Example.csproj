@@ -43,7 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Rudel\Rudel.csproj">
-      <Project>{454a0686-0f9f-4bd1-a157-894e3d70bb3e}</Project>
+      <Project>{C7443159-D842-409E-8A63-945502640176}</Project>
       <Name>Rudel</Name>
     </ProjectReference>
   </ItemGroup>
