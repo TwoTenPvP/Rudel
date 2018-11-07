@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using Rudel;
 
 namespace Rude.Example
@@ -18,15 +19,29 @@ namespace Rude.Example
             clientNetwork.Start();
 
             LocalPeer server = serverNetwork.CreateLocalPeer();
-            server.StartListening(new IPEndPoint(IPAddress.Any, 1234));
+            server.StartListening(new IPEndPoint(IPAddress.Any, 4343));
             LocalPeer client = clientNetwork.CreateLocalPeer();
-            client.StartListening(new IPEndPoint(IPAddress.Any, 1224));
+            client.StartListening(new IPEndPoint(IPAddress.Any, 3434));
 
             // Don't actually need this. You will get it in the connect event
-            RemotePeer clientServerPeer = client.Connect(new IPEndPoint(IPAddress.Any, 1234));
-            
-            
+            RemotePeer clientServerPeer = client.Connect(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 4343));
+
+
             // TODO: Poll for messages
+            while (true)
+            {
+                NetworkEvent serverEvent = server.Poll();
+                if (serverEvent != null)
+                {
+                    Console.WriteLine("@Server: " + serverEvent.EventType);
+                }
+
+                NetworkEvent clientEvent = client.Poll();
+                if (clientEvent != null)
+                {
+                    Console.WriteLine("@Client: " + clientEvent.EventType);
+                }
+            }
         }
     }
 }

@@ -3,6 +3,7 @@ using Rudel.Channels;
 using Rudel.Packets;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 
@@ -110,23 +111,30 @@ namespace Rudel.Tests
             Assert.True(keys[new ConnectKey(endpoint3, 30)]);
         }
 
-        /*
+        
         [Test]
         public void TestConnection()
         {
-            return;
-            LocalPeer server = new LocalPeer();
+            RudelNetwork network = new RudelNetwork();
+            network.Start();
+
+            LocalPeer server = new LocalPeer(network);
             server.StartListening(new IPEndPoint(IPAddress.Any, 5057));
 
 
 
-            LocalPeer client = new LocalPeer();
+            LocalPeer client = new LocalPeer(network);
             client.StartListening(new IPEndPoint(IPAddress.Any, 5058));
 
 
             RemotePeer remotePeer = client.Connect(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5057));
+
+            while(true)
+            {
+                Debug.Print(remotePeer.ConnectionState.ToString());
+            }
         }
-        */
+        
 
         [Test]
         public void TestConnectionRequestPacket()

@@ -99,7 +99,7 @@ namespace Rudel
 
         internal void PollSocket()
         {
-            if (socket.Poll(Constants.SOCKET_BLOCK_MILISECONDS * 1000, SelectMode.SelectError))
+            if (socket != null && socket.Poll(Constants.SOCKET_BLOCK_MILISECONDS * 1000, SelectMode.SelectRead))
             {
                 byte[] payload = new byte[4096];
 
@@ -172,6 +172,14 @@ namespace Rudel
 
                                 PendingPeers.Remove(new ConnectKey(fromEndpoint, challenge.ClientRandom));
                                 Connected.Add(fromEndpoint, peer);
+
+                                incomingEvents.Enqueue(new NetworkEvent()
+                                {
+                                    EventType = EventType.Connect,
+                                    Packet = null,
+                                    RemotePeer = peer,
+                                    LocalPeer = this
+                                });
 
                                 ChallengeResponsePacket packet = new ChallengeResponsePacket(peer.ChallengeSeed, peer.ChallengeData, peer.ChallengeResult);
 
