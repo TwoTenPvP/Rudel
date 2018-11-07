@@ -42,18 +42,19 @@ namespace Rudel.Channels
             {
                 // This is the "next" packet
 
-                while (packet.Sequence == _incomingLowestAckedSequence + 1)
+                do
                 {
                     // Remove previous
                     _incomingAckedPackets.Remove(_incomingLowestAckedSequence);
                     _incomingLowestAckedSequence++;
                 }
+                while (packet.Sequence == _incomingLowestAckedSequence + 1);
 
                 // TODO: Send ack
 
                 return packet;
             }
-            else
+            else if (Distance(packet.Sequence, _incomingLowestAckedSequence) > 0 && !_incomingAckedPackets.ContainsKey(packet.Sequence))
             {
                 // This is a future packet
 
@@ -63,6 +64,18 @@ namespace Rudel.Channels
 
                 return packet;
             }
+
+            return null;
+        }
+
+        private long Distance(ulong from, ulong to)
+        {
+            int _shift = (sizeof(ulong) - sizeof(ushort)) * sizeof(byte);
+
+            to <<= _shift;
+            from <<= _shift;
+
+            return ((long)(from - to)) >> _shift;
         }
 
         public override ChanneledPacket CreateOutgoingMessage(byte[] payload, int offset, int length)
