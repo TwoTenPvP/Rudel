@@ -1,37 +1,26 @@
-﻿using Rudel.Packets;
+﻿using System;
+using Rudel.Packets;
+using Rudel.Utils;
 
 namespace Rudel.Channels
 {
     internal sealed class ReliableSequencedChannel : Channel
     {
+        private ushort _lowestAckedMessage;
         private ushort _lastOutboundSequenceNumber;
         private ushort _lastReceivedSequenceNumber;
-        private readonly MessageSequencer<ReliableSequencedPacket> _receiveSequencer = new MessageSequencer<ReliableSequencedPacket>();
-        private readonly MessageSequencer<ReliableSequencedPacket> _sendSequencer = new MessageSequencer<ReliableSequencedPacket>();
+        private readonly MessageSequencer<ReliableSequencedPacket> _receiveSequencer = new MessageSequencer<ReliableSequencedPacket>(Constants.SEQUENCE_MESSAGE_BUFFER_SIZE);
+        private readonly MessageSequencer<ReliableSequencedPacket> _sendSequencer = new MessageSequencer<ReliableSequencedPacket>(Constants.SEQUENCE_MESSAGE_BUFFER_SIZE);
 
         internal override bool SupportsAck => true;
 
         public ReliableSequencedChannel(byte channel) : base(channel)
         {
         }
-
-        private ulong GetXAckMask(ushort lastReceived)
-        {
-            ulong mask = 0UL;
-            for (byte i = 0; i < Constants.ACK_MASK_BITS; ++i)
-            {
-                if (_receiveSequencer.HasMessage(lastReceived + (Constants.ACK_MASK_BITS - 1 - i)))
-                {
-                    mask |= (1UL << i);
-                }
-            }
-
-            return mask;
-        }
-
+        
         public override ChanneledPacket CreateOutgoingMessage(byte[] payload, int offset, int length)
         {
-            ReliableSequencedPacket message = new ReliableSequencedPacket(ChannelId, ++_lastOutboundSequenceNumber, _lastReceivedSequenceNumber, GetXAckMask(_lastReceivedSequenceNumber), payload, offset, length);
+            ReliableSequencedPacket message = new ReliableSequencedPacket(ChannelId, ++_lastOutboundSequenceNumber, _lastReceivedSequenceNumber, payload, offset, length);
 
             _sendSequencer.Push(message);
 
@@ -44,6 +33,12 @@ namespace Rudel.Channels
             {
                 _sendSequencer.Peek(packet.Sequence).ExplicitResponse = ExplicitResponseState.Ack;
                 OnMessageAck(packet.Sequence);
+            }
+
+
+            for (ushort i = packet.Sequence; _sendSequencer.HasMessage(i) && _sendSequencer.Peek(i).ExplicitResponse == ExplicitResponseState.Ack; i++)
+            {
+                _lowestAckedMessage = i;
             }
         }
 
@@ -70,25 +65,10 @@ namespace Rudel.Channels
                 packet.ExplicitResponse = ExplicitResponseState.Ack;
                 OnMessageAck(packet.AckSequence);
             }
-
-            // Resolve their acks & nacks from mask
-            for (int i = 0; i < Constants.ACK_MASK_BITS; i++)
+            
+            for (ushort i = packet.AckSequence; _sendSequencer.HasMessage(i) && _sendSequencer.Peek(i).ExplicitResponse == ExplicitResponseState.Ack; i++)
             {
-                if (_sendSequencer.HasMessage(packet.AckSequence - i))
-                {
-                    ExplicitResponseState newState = (packet.AckMask & (1UL << i)) != 0 ? ExplicitResponseState.Ack : ExplicitResponseState.Nack;
-                    ExplicitResponseState currentState = _sendSequencer.Peek(packet.AckSequence - i).ExplicitResponse;
-
-                    if (currentState != newState && currentState != ExplicitResponseState.Ack)
-                    {
-                        if (newState == ExplicitResponseState.Ack)
-                            OnMessageAck(packet.AckSequence - i);
-                        if (newState == ExplicitResponseState.Nack)
-                            OnMessageNack(packet.AckSequence - i);
-                    }
-
-                    _sendSequencer.Peek(packet.AckSequence - i).ExplicitResponse = newState;
-                }
+                _lowestAckedMessage = i;
             }
 
             if (_receiveSequencer.HasMessage((ushort)(_lastReceivedSequenceNumber + 1)))
@@ -100,6 +80,18 @@ namespace Rudel.Channels
             {
                 hasMore = false;
                 return null;
+            }
+        }
+
+        internal override void ResendPoll()
+        {
+            long distance = SequencingUtils.Distance(_lastOutboundSequenceNumber, _lowestAckedMessage, sizeof(ushort));
+            for (ushort i = _lowestAckedMessage; i < _lowestAckedMessage + distance; i++)
+            {
+                if (_sendSequencer.HasMessage(i) && (DateTime.Now - _sendSequencer.Peek(i).LastSent).TotalMilliseconds > Constants.RESEND_DELAY)
+                {
+                    _sendSequencer.Peek(i).LastSentBy.SendPacket(_sendSequencer.Peek(i), _sendSequencer.Peek(i).LastSentTo);
+                }
             }
         }
     }

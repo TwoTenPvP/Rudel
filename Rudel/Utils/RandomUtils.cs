@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Security.Cryptography;
 
-namespace Rudel
+namespace Rudel.Utils
 {
     internal static class RandomUtils
     {

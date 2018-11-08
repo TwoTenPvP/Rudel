@@ -2,6 +2,8 @@
 {
     internal static class Constants
     {
+        internal const ushort DUPLICATION_PROTECTION_BUFFER_SIZE = 1024;
+        internal const ushort RESEND_DELAY = 200;
         internal const ushort MAX_OUTGOING_MESSAGE_DELAY = 1000;
         internal const ushort SOCKET_BLOCK_MILISECONDS = 10;
         internal const ushort CONNECTION_TIMEOUT_MILISECONDS = 10000;

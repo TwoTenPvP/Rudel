@@ -32,5 +32,10 @@ namespace Rudel
         {
             // Called when this channel gets an EXPLICITLY nacked message
         }
+
+        internal virtual void ResendPoll()
+        {
+            
+        }
     }
 }

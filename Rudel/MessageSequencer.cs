@@ -4,7 +4,12 @@ namespace Rudel
 {
     internal class MessageSequencer<T> where T : ChanneledPacket
     {
-        private readonly VirtualOverflowArray<T> _pendingMessages = new VirtualOverflowArray<T>(Constants.SEQUENCE_MESSAGE_BUFFER_SIZE);
+        private readonly VirtualOverflowArray<T> _pendingMessages;
+        
+        internal MessageSequencer(int size)
+        {
+            _pendingMessages = new VirtualOverflowArray<T>(size);
+        }
 
         internal void Push(T message)
         {

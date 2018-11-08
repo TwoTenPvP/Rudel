@@ -1,7 +1,13 @@
-﻿namespace Rudel
+﻿using System;
+
+namespace Rudel
 {
     public abstract class Packet
     {
+        public DateTime LastSent { get; internal set; } = DateTime.MinValue;
+        public int SendCount { get; internal set; }
+        public LocalPeer LastSentBy { get; internal set; }
+        public RemotePeer LastSentTo { get; internal set; }
         public abstract PacketType PacketType { get; }
         private PacketType packetType = PacketType.Invalid;
 

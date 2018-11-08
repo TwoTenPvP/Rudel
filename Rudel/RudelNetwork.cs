@@ -102,5 +102,19 @@ namespace Rudel
                 _localPeers[i].PollSocket();
             }
         }
+
+        private void PollChannels()
+        {
+            for (int i = 0; i < _localPeers.Count; i++)
+            {
+                foreach (RemotePeer peer in _localPeers[i].Connected.Values)
+                {
+                    for (int j = 0; j < peer.Channels.Length; j++)
+                    {
+                        peer.Channels[j].ResendPoll();
+                    }
+                }
+            }
+        }
     }
 }

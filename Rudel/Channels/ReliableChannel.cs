@@ -1,5 +1,6 @@
 ﻿using Rudel.Packets;
 using System.Collections.Generic;
+using Rudel.Utils;
 
 namespace Rudel.Channels
 {
@@ -54,7 +55,7 @@ namespace Rudel.Channels
 
                 return packet;
             }
-            else if (Distance(packet.Sequence, _incomingLowestAckedSequence) > 0 && !_incomingAckedPackets.ContainsKey(packet.Sequence))
+            else if (SequencingUtils.Distance(packet.Sequence, _incomingLowestAckedSequence, sizeof(ushort)) > 0 && !_incomingAckedPackets.ContainsKey(packet.Sequence))
             {
                 // This is a future packet
 
@@ -66,16 +67,6 @@ namespace Rudel.Channels
             }
 
             return null;
-        }
-
-        private long Distance(ulong from, ulong to)
-        {
-            int _shift = (sizeof(ulong) - sizeof(ushort)) * sizeof(byte);
-
-            to <<= _shift;
-            from <<= _shift;
-
-            return ((long)(from - to)) >> _shift;
         }
 
         public override ChanneledPacket CreateOutgoingMessage(byte[] payload, int offset, int length)
@@ -95,6 +86,11 @@ namespace Rudel.Channels
                 OnMessageAck(packet.Sequence);
                 _outgoingPendingMessages.Remove(packet.Sequence);
             }
+        }
+
+        internal override void ResendPoll()
+        {
+            // TODO: Resend packets
         }
     }
 }

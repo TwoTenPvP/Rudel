@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using Rudel.Utils;
 
 namespace Rudel
 {
@@ -95,6 +96,10 @@ namespace Rudel
 
             int sentSize = socket.SendTo(payload, 0, size, SocketFlags.None, peer.RemoteEndpoint);
             peer.LastOutgoingMessageDate = DateTime.Now;
+            packet.LastSent = DateTime.Now;
+            packet.SendCount++;
+            packet.LastSentBy = this;
+            packet.LastSentTo = peer;
         }
 
         internal void PollSocket()
@@ -110,7 +115,7 @@ namespace Rudel
                 HandlePacket(payload, size, fromEndpoint);
             }
         }
-
+        
         private void HandlePacket(byte[] data, int length, EndPoint fromEndpoint)
         {
             if (length < 1)

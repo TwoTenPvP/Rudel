@@ -39,6 +39,16 @@ namespace Rudel
                         Channels[i] = new ReliableSequencedChannel(i);
                     }
                         break;
+                    case ChannelType.Unreliable:
+                    {
+                        Channels[i] = new UnreliableChannel(i);
+                    }
+                        break;
+                    case ChannelType.UnreliableOrdered:
+                    {
+                        Channels[i] = new UnreliableSequencedChannel(i);
+                    }
+                        break;
                 }
             }
         }
